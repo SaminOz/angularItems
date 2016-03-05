@@ -24,9 +24,17 @@
 
   .service('ANIMATE', ['$timeout', function($timeout){
     this.elipsis = ' ';
+    this.scope;
+    //keep track for use with visibilitychange event.
+    this.active = false;
+    this.stackedTimeouts = [];
     this.waiting = function waiting (  str, scope, property, reps ) {
-      var reps = reps || 'infinite';
-      this.timeout = $timeout(function(){
+      if( !! this.active ) return false;
+      this.active = true;
+      var reps = reps || 'infinite', timeout;
+      this.scope = scope;
+      this.property = property;
+      timeout = $timeout(function(){
         if( this.elipsis.length <= 3 && !! reps ) {
           this.elipsis += '.'
         }
@@ -36,11 +44,26 @@
         }
         scope[property] = str + this.elipsis;
         if( reps === 'infinite' || reps > 0  ) {
-         this.waiting( str, scope, property, reps);
+          this.active = false;
+          this.waiting( str, scope, property, reps);
         }
         else {
-          $timeout.cancel( this.timeout );
+          this.kill();
         }
-      }.bind(this), 500);
+      }.bind(this), 1000);
+      this.stackedTimeouts.push(timeout);
     }.bind(this);
+
+    this.kill = function( str ) {
+      this.stackedTimeouts.forEach(function(d){
+        $timeout.cancel(d);
+      });
+
+      this.stackedTimeouts = [];
+      
+      if( !! str )  {
+        this.scope[this.property] = str;
+      }
+      this.active = false;
+    };
   }])
